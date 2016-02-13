@@ -24,6 +24,7 @@ calcPath a b [] = if a < b then return a else return b
 calcPath a b (x:xs) = do
             aw <- astep a b x
             bw <- bstep a b x
+-- !!! This is the problem as calcPath takes two monads, then the [Road] will do mappend on not only aw but also bw
             calcPath aw bw xs
 
 main = do
