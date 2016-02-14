@@ -21,12 +21,13 @@ allSampleHash :: Handle -> Integer -> IO [MD5Digest]
 allSampleHash h size = case offsets size of Nothing -> error "The file size must be larger than 8 KB"
                                             Just os -> mapM id $ fmap (sampleHash h) os
 
-
 fileHash :: FilePath -> IO String
 fileHash path = do
    let handleIO = openFile path ReadMode
    let sizeIO = handleIO >>= hFileSize
-   (intercalate ";" . fmap show) <$> (join $ allSampleHash <$> handleIO <*> sizeIO)
+   let ret = (intercalate ";" . fmap show) <$> (join $ allSampleHash <$> handleIO <*> sizeIO)
+   handleIO >>= hClose
+   ret
 
 main = do
    (path:_) <- getArgs
