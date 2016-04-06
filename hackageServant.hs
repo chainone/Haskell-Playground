@@ -13,8 +13,7 @@ import Data.Text (Text)
 import GHC.Generics
 import Servant.API
 import Servant.Client
-import System.IO.Unsafe
-import Network.HTTP.Client (newManager, defaultManagerSettings)
+import Network.HTTP.Client (newManager, defaultManagerSettings, Manager)
 
 import qualified Data.Text    as T
 import qualified Data.Text.IO as T
@@ -59,32 +58,31 @@ instance FromJSON Package
 hackageAPI :: Proxy HackageAPI
 hackageAPI = Proxy
 
-getUsers :: ExceptT ServantError IO [UserSummary]
-getUser :: Username -> ExceptT ServantError IO UserDetailed
-getPackages :: ExceptT ServantError IO [Package]
+getUsers ::   Manager -> BaseUrl -> ExceptT ServantError IO [UserSummary]
+getUser :: Username ->  Manager -> BaseUrl -> ExceptT ServantError IO UserDetailed
+getPackages ::  Manager -> BaseUrl -> ExceptT ServantError IO [Package]
 
-
-baseURL =  BaseUrl Http "hackage.haskell.org" 80 ""
-manager = unsafePerformIO $ newManager defaultManagerSettings
-
-getUsers :<|> getUser :<|> getPackages = client hackageAPI baseURL manager
+getUsers :<|> getUser :<|> getPackages = client hackageAPI
 
 main :: IO ()
 main = print =<< uselessNumbers
 
 uselessNumbers :: IO (Either ServantError ())
 uselessNumbers = runExceptT $ do
-  users <- getUsers
-  liftIO . putStrLn $ show (length users) ++ " users"
+   let baseURL = BaseUrl Http "hackage.haskell.org" 80 ""
+   manager <- liftIO $ newManager defaultManagerSettings
+   users <- getUsers manager baseURL
+   liftIO . putStrLn $ show (length users) ++ " users"
 
-  user <- liftIO $ do
-    putStrLn "Enter a valid hackage username"
-    T.getLine
-  userDetailed <- getUser user
-  liftIO . T.putStrLn $ user <> " maintains " <> T.pack (show (length $ groups userDetailed)) <> " packages"
+   user <- liftIO $ do
+      putStrLn "Enter a valid hackage username"
+      T.getLine
 
-  packages <- getPackages
-  let monadPackages = filter (isMonadPackage . packageName) packages
-  liftIO . putStrLn $ show (length monadPackages) ++ " monad packages"
+   userDetailed <- getUser user manager baseURL
+   liftIO . T.putStrLn $ user <> " maintains " <> T.pack (show (length $ groups userDetailed)) <> " packages"
 
-  where isMonadPackage = T.isInfixOf "monad"
+   packages <- getPackages manager baseURL
+   let monadPackages = filter (isMonadPackage . packageName) packages
+   liftIO . putStrLn $ show (length monadPackages) ++ " monad packages"
+
+   where isMonadPackage = T.isInfixOf "monad"
